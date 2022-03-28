@@ -10,15 +10,19 @@
 // Declare the shift register
 Shifty shift; 
 
+// Set the clock, data, and latch pins you are using
+// This also sets the pinMode for these pins
+int SER_Pin = 14;   //pin D5 on the D1 mini DA 
+int RCLK_Pin = 12;  //pin D6 on the D1 mini ST
+int SRCLK_Pin = 13; //pin D7 on the D1 mini CH
 
-int SER_Pin = 14;   //pin 14 on the 75HC595 data
-int RCLK_Pin = 12;  //pin 12 on the 75HC595 latch
-int SRCLK_Pin = 13; //pin 11 on the 75HC595 clk
 // Update these with values suitable for your network.
-
 const char* ssid = "GottaBounce";
 const char* password = "Asdf1234";
-const char* mqtt_server = "192.168.0.28";
+const char* mqtt_server = "192.168.179.4";
+const int mqtt_port = 1884;
+const char* mqtt_user = "******";
+const char* mqtt_password = "***";
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -36,12 +40,6 @@ char pin = '0';
 void setup_shift() {
   shift.setBitCount(shiftBits);
 
-  // Set the clock, data, and latch pins you are using
-  // This also sets the pinMode for these pins
-  //int SER_Pin = 14;   //pin 14 on the 75HC595 data
-  //int RCLK_Pin = 12;  //pin 12 on the 75HC595 latch
-  //int SRCLK_Pin = 13; //pin 11 on the 75HC595 clk
-  
   shift.setPins(SER_Pin, SRCLK_Pin, RCLK_Pin); 
   
   //Set onstart all bits to LOW
@@ -86,9 +84,9 @@ void callback(char* topic, byte* payload, unsigned int length) {
   Serial.println((char)payload[0]);
   // Switch on the LED if an 1 was received as first character
   if ((char)payload[0] == '1' ) {
-        shift.writeBit(myPin, HIGH);   
+    shift.writeBit(myPin, HIGH);   
   } else {
-        shift.writeBit(myPin, LOW); 
+    shift.writeBit(myPin, LOW); 
   }
 
   client.publish("Sensor/DP4", topic );
@@ -98,12 +96,15 @@ void reconnect() {
   // Loop until we're reconnected
   while (!client.connected()) {
     Serial.print("Attempting MQTT connection...");
+    
     // Create a random client ID
     String clientId = "ESP_JebaoDP4-";
     clientId += String(random(0xffff), HEX);
+    
     // Attempt to connect
-    if (client.connect(clientId.c_str())) {
+    if (client.connect(clientId.c_str(), mqtt_user, mqtt_password)) {
       Serial.println("connected");
+      
       // Once connected, publish an announcement...
       client.publish("dosing/DP4", "dosing/DP4 is Online");
       // ... and resubscribe
@@ -112,6 +113,7 @@ void reconnect() {
       Serial.print("failed, rc=");
       Serial.print(client.state());
       Serial.print(clientId);
+      
       Serial.println(" try again in 5 seconds");
       // Wait 5 seconds before retrying
       delay(5000);
@@ -125,14 +127,14 @@ void setup() {
   setup_shift();
   setup_wifi();
 
-  client.setServer(mqtt_server, 1883);
+  client.setServer(mqtt_server, mqtt_port);
   client.setCallback(callback);
 
- // Port defaults to 8266
+  // Port defaults to 8266
   // ArduinoOTA.setPort(8266);
 
   // Hostname defaults to esp8266-[ChipID]
-  ArduinoOTA.setHostname("ESP_JebaoDP4");
+  ArduinoOTA.setHostname("JebaoDP4");
 
   // No authentication by default
   ArduinoOTA.setPassword((const char *)"333");
@@ -161,12 +163,12 @@ void setup() {
 }
 
 void loop() {
-
   if (!client.connected()) {
     reconnect();
   }
+  
   client.loop();
-  delay(0);
+  
+  delay(10);
   ArduinoOTA.handle();
-
 }
