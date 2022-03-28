@@ -26,14 +26,31 @@ long lastMsg = 0;
 char msg[50];
 int value = 0;
 int myPin = 0;
+// Set the number of bits you have (multiples of 8)
+int shiftBits = 8;
 String myTopic = "";
 String myPayload = "";
 char pin = '0';
 
 
+void setup_shift() {
+  shift.setBitCount(shiftBits);
+
+  // Set the clock, data, and latch pins you are using
+  // This also sets the pinMode for these pins
+  //int SER_Pin = 14;   //pin 14 on the 75HC595 data
+  //int RCLK_Pin = 12;  //pin 12 on the 75HC595 latch
+  //int SRCLK_Pin = 13; //pin 11 on the 75HC595 clk
+  
+  shift.setPins(SER_Pin, SRCLK_Pin, RCLK_Pin); 
+  
+  //Set onstart all bits to LOW
+  for (int i = 0; i <= shiftBits; i++) {
+    shift.writeBit(i, LOW);
+  }
+}
 
 void setup_wifi() {
-
   delay(10);
   // We start by connecting to a WiFi network
   Serial.println();
@@ -59,7 +76,8 @@ void setup_wifi() {
 void callback(char* topic, byte* payload, unsigned int length) {
   Serial.print("Message arrived [");
   Serial.print(topic);
-   Serial.print("]");
+  Serial.print("]");
+  
   String pinStr = "0";
   pinStr = ((String)((char)topic[strlen(topic)-1]));
   int myPin = pinStr.toInt();
@@ -67,10 +85,10 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
   Serial.println((char)payload[0]);
   // Switch on the LED if an 1 was received as first character
-  if ((char)payload[0] == '0' ) {
-        shift.writeBit(myPin, LOW);   
+  if ((char)payload[0] == '1' ) {
+        shift.writeBit(myPin, HIGH);   
   } else {
-        shift.writeBit(myPin, HIGH); 
+        shift.writeBit(myPin, LOW); 
   }
 
   client.publish("Sensor/DP4", topic );
@@ -102,26 +120,14 @@ void reconnect() {
 }
 
 void setup() {
-
   Serial.begin(115200);
-   // Set the number of bits you have (multiples of 8)
-  shift.setBitCount(8);
-
-  // Set the clock, data, and latch pins you are using
-  // This also sets the pinMode for these pins
-  //int SER_Pin = 14;   //pin 14 on the 75HC595 data
-  //int RCLK_Pin = 12;  //pin 12 on the 75HC595 latch
-  //int SRCLK_Pin = 13; //pin 11 on the 75HC595 clk
   
-  shift.setPins(SER_Pin, SRCLK_Pin, RCLK_Pin); 
-  
+  setup_shift();
   setup_wifi();
 
-  
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
 
-  
  // Port defaults to 8266
   // ArduinoOTA.setPort(8266);
 
@@ -152,9 +158,6 @@ void setup() {
   Serial.println("Ready");
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
-
-
-  
 }
 
 void loop() {
