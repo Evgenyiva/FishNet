@@ -25,6 +25,8 @@ const char* mqtt_user = "******";
 const char* mqtt_password = "***";
 
 unsigned long lastAliveTimestamp = 0;
+unsigned long previousMillis = 0;
+const long interval = 1000; // Interval in milliseconds for publishing
 WiFiClient espClient;
 PubSubClient client(espClient);
 long lastMsg = 0;
