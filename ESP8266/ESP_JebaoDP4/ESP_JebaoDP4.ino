@@ -24,6 +24,7 @@ const int mqtt_port = 1884;
 const char* mqtt_user = "******";
 const char* mqtt_password = "***";
 
+unsigned long lastAliveTimestamp = 0;
 WiFiClient espClient;
 PubSubClient client(espClient);
 long lastMsg = 0;
@@ -90,6 +91,25 @@ void callback(char* topic, byte* payload, unsigned int length) {
   }
 
   client.publish("Sensor/DP4", topic );
+}
+
+void publishShiftRegisterState() {
+  String stateMessage = "";
+
+  for (int i = 0; i < shiftBits; i++) {
+    int bitValue = shift.readBit(i);
+    stateMessage += String(bitValue);
+  }
+
+  // Publish the state to MQTT topic
+  client.publish("dosing/DP4/state", stateMessage.c_str());
+}
+
+void publishAliveMessage() {
+  char timestampBuffer[20];
+  snprintf(timestampBuffer, sizeof(timestampBuffer), "%lu", lastAliveTimestamp);
+
+  client.publish("dosing/DP4/alive", timestampBuffer);
 }
 
 void reconnect() {
@@ -163,6 +183,21 @@ void setup() {
 }
 
 void loop() {
+  unsigned long currentMillis = millis();
+  
+  // Check if it's time to publish
+  if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
+    
+    publishShiftRegisterState();
+  }
+  
+  // Check if it's time to update "alive" message
+  if (currentMillis - lastAliveTimestamp >= 5000) { // Update every 5 seconds
+    lastAliveTimestamp = currentMillis;
+    publishAliveMessage();
+  }
+  
   if (!client.connected()) {
     reconnect();
   }
